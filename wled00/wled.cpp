@@ -443,7 +443,7 @@ static void p8FiveScanRawTask(void *) {
       digitalWrite(latchPin, HIGH);
       digitalWrite(latchPin, LOW);
       digitalWrite(outputEnablePin, LOW);
-      delayMicroseconds(700);
+      delayMicroseconds(80);
     }
     delay(1);
   }
