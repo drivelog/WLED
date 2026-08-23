@@ -402,8 +402,23 @@ static void p8FiveScanRawTask(void *) {
   pinMode(clockPin, OUTPUT);
   digitalWrite(outputEnablePin, HIGH);
 
+  // Returns RGB bit flags for the calibration rectangle at a logical coordinate.
+  const auto calibrationColor = [](uint8_t x, uint8_t y) -> uint8_t {
+    const bool outerBorder = x == 0 || x == 39 || y == 0 || y == 19;
+    const bool centerCross = x == 19 || x == 20 || y == 9 || y == 10;
+    if (outerBorder || centerCross) return 0x07;
+
+    const bool rectangleBorder = x == 2 || x == 17 || x == 22 || x == 37 ||
+                                 y == 2 || y == 7 || y == 12 || y == 17;
+    if (!rectangleBorder) return 0;
+    if (x < 19 && y < 9) return 0x01; // red, top-left
+    if (x > 20 && y < 9) return 0x02; // green, top-right
+    if (x < 19 && y > 10) return 0x04; // blue, bottom-left
+    if (x > 20 && y > 10) return 0x03; // yellow, bottom-right
+    return 0;
+  };
+
   for (;;) {
-    const uint8_t rawPosition = (millis() / 250U) % 88U; // bits 80-87 provide a visible pause
     for (uint8_t row = 0; row < 5; row++) {
       digitalWrite(outputEnablePin, HIGH);
       digitalWrite(addressPins[0], row & 0x01);
@@ -411,13 +426,16 @@ static void p8FiveScanRawTask(void *) {
       digitalWrite(addressPins[2], row & 0x04);
 
       for (uint8_t column = 0; column < 80; column++) {
-        const bool active = row == 0 && column == rawPosition;
-        digitalWrite(dataPins[0], active); // R1: upper bank marker
-        digitalWrite(dataPins[1], LOW);
-        digitalWrite(dataPins[2], LOW);
-        digitalWrite(dataPins[3], LOW);
-        digitalWrite(dataPins[4], LOW);
-        digitalWrite(dataPins[5], active); // B2: lower bank marker
+        const uint8_t bank = column / 40;
+        const uint8_t x = column % 40;
+        const uint8_t upperColor = calibrationColor(x, row + bank * 5);
+        const uint8_t lowerColor = calibrationColor(x, row + 10 + bank * 5);
+        digitalWrite(dataPins[0], upperColor & 0x01);
+        digitalWrite(dataPins[1], upperColor & 0x02);
+        digitalWrite(dataPins[2], upperColor & 0x04);
+        digitalWrite(dataPins[3], lowerColor & 0x01);
+        digitalWrite(dataPins[4], lowerColor & 0x02);
+        digitalWrite(dataPins[5], lowerColor & 0x04);
         digitalWrite(clockPin, HIGH);
         digitalWrite(clockPin, LOW);
       }
