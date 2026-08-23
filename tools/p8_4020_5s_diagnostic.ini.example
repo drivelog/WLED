@@ -1,0 +1,12 @@
+; Copy this file to platformio_override.ini to build the P8 40x20 diagnostic firmware.
+[platformio]
+default_envs = p8_4020_5s_diagnostic
+
+[env:p8_4020_5s_diagnostic]
+extends = env:adafruit_matrixportal_esp32s3
+build_unflags = -D LED_TYPES=TYPE_HUB75MATRIX_HS
+build_flags = ${env:adafruit_matrixportal_esp32s3.build_flags}
+  -D LED_TYPES=TYPE_HUB75MATRIX_5S
+  -D DATA_PINS=40,20,1,1,1
+  -D PIXEL_COUNTS=800
+  -D WLED_P8_5S_DIAGNOSTIC

@@ -442,12 +442,19 @@ class BusHub75Matrix : public Bus {
     uint8_t _cols = 1; // panels per column
     bool _isVirtual = false; // note: this is not strictly needed but there are padding bytes here anyway
     bool _isQuadScan = false;
+    bool _isFiveScan = false;
+    uint8_t _physicalPanelWidth = 0;
+    uint8_t _physicalPanelHeight = 0;
     CRGB *_ledBuffer = nullptr; // note: using uint32_t buffer is only 2% faster and not worth the extra RAM
     byte *_ledsDirty = nullptr;
     // workaround for missing constants on include path for non-MM
     static constexpr uint32_t IS_BLACK = 0x000000u;
     static constexpr uint32_t IS_DARKGREY = 0x333333u;
     static constexpr int PIN_COUNT = 14;
+    void drawFiveScanPixel(int16_t x, int16_t y, uint8_t r, uint8_t g, uint8_t b);
+#ifdef WLED_P8_5S_DIAGNOSTIC
+    void drawFiveScanDiagnostic();
+#endif
 };
 #endif
 
