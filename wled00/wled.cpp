@@ -402,24 +402,13 @@ static void p8FiveScanRawTask(void *) {
   pinMode(clockPin, OUTPUT);
   digitalWrite(outputEnablePin, HIGH);
 
-  // Returns RGB bit flags for the calibration rectangle at a logical coordinate.
-  const auto calibrationColor = [](uint8_t x, uint8_t y) -> uint8_t {
-    const bool outerBorder = x == 0 || x == 39 || y == 0 || y == 19;
-    const bool centerCross = x == 19 || x == 20 || y == 9 || y == 10;
-    if (outerBorder || centerCross) return 0x07;
-
-    const bool rectangleBorder = x == 2 || x == 17 || x == 22 || x == 37 ||
-                                 y == 2 || y == 7 || y == 12 || y == 17;
-    if (!rectangleBorder) return 0;
-    if (x < 19 && y < 9) return 0x01;
-    if (x > 20 && y < 9) return 0x02;
-    if (x < 19 && y > 10) return 0x04;
-    if (x > 20 && y > 10) return 0x03;
-    return 0;
+  static constexpr uint8_t blockColors[] = {
+    0x01, 0x02, 0x04, 0x03, 0x05, 0x06, 0x07, 0x01
   };
 
   uint8_t completedScans = 0;
   for (;;) {
+    const uint8_t activeBlock = (millis() / 4000U) % 8U;
     for (uint8_t row = 0; row < 5; row++) {
       digitalWrite(outputEnablePin, HIGH);
       digitalWrite(addressPins[0], row & 0x01);
@@ -427,10 +416,12 @@ static void p8FiveScanRawTask(void *) {
       digitalWrite(addressPins[2], row & 0x04);
 
       for (uint8_t column = 0; column < 80; column++) {
-        const uint8_t bank = column & 0x01;
-        const uint8_t x = column / 2;
-        const uint8_t upperColor = calibrationColor(x, row + bank * 5);
-        const uint8_t lowerColor = calibrationColor(x, row + 10 + bank * 5);
+        uint8_t upperColor = 0;
+        if (row == 0 && column / 10 == activeBlock) {
+          upperColor = blockColors[activeBlock];
+          if (activeBlock == 7 && (column & 1)) upperColor = 0x04;
+        }
+        const uint8_t lowerColor = upperColor;
         digitalWrite(dataPins[0], upperColor & 0x01);
         digitalWrite(dataPins[1], upperColor & 0x02);
         digitalWrite(dataPins[2], upperColor & 0x04);
