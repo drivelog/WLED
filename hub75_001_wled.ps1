@@ -1,6 +1,6 @@
 # DWD observations for 04451/Borsdorf, provided as JSON by Bright Sky.
 $weatherUri = "https://api.brightsky.dev/current_weather?lat=51.35&lon=12.53333"
-$forecastUri = "https://api.open-meteo.com/v1/forecast?latitude=51.35&longitude=12.53333&hourly=precipitation_probability,precipitation&timezone=Europe%2FBerlin&forecast_days=2"
+$forecastUri = "https://api.open-meteo.com/v1/forecast?latitude=51.35&longitude=12.53333&hourly=precipitation_probability,precipitation&daily=sunrise,sunset&timezone=Europe%2FBerlin&forecast_days=2"
 
 try {
   $weatherResponse = Invoke-RestMethod `
@@ -33,8 +33,22 @@ try {
   $compassPoints = @("N", "NO", "O", "SO", "S", "SW", "W", "NW")
   $windCompass = $compassPoints[[int][math]::Floor((($windDirection + 22.5) % 360) / 45)]
   $rain10Text = ([double]$weatherResponse.weather.precipitation_10).ToString("0.0", [Globalization.CultureInfo]::InvariantCulture)
+  $rain30Text = ([double]$weatherResponse.weather.precipitation_30).ToString("0.0", [Globalization.CultureInfo]::InvariantCulture)
   $currentRainText = ([double]$weatherResponse.weather.precipitation_60).ToString("0.0", [Globalization.CultureInfo]::InvariantCulture)
   $stationName = [string]$weatherResponse.sources[0].station_name
+  $measurementTime = ([datetimeoffset]::Parse($weatherResponse.weather.timestamp)).ToLocalTime().ToString("HH:mm")
+
+  $conditionNames = @{
+    dry = "Trocken"
+    rain = "Regen"
+    snow = "Schnee"
+    sleet = "Schneeregen"
+    fog = "Nebel"
+    hail = "Hagel"
+    thunderstorm = "Gewitter"
+  }
+  $condition = [string]$weatherResponse.weather.condition
+  $conditionText = if ($conditionNames.ContainsKey($condition)) { $conditionNames[$condition] } else { $condition }
 
   $tomorrow = (Get-Date).Date.AddDays(1)
   $morningProbabilities = @()
@@ -54,6 +68,13 @@ try {
 
   $maxRainProbability = [int](($morningProbabilities | Measure-Object -Maximum).Maximum)
   $rainAmount = [double](($morningPrecipitation | Measure-Object -Sum).Sum)
+  $tomorrowText = $tomorrow.ToString("yyyy-MM-dd")
+  $tomorrowIndex = [array]::IndexOf([array]$forecastResponse.daily.time, $tomorrowText)
+  if ($tomorrowIndex -lt 0) {
+    throw "Fuer morgen wurden keine Sonnenzeiten geliefert."
+  }
+  $sunrise = ([datetime]::Parse($forecastResponse.daily.sunrise[$tomorrowIndex])).ToString("HH:mm")
+  $sunset = ([datetime]::Parse($forecastResponse.daily.sunset[$tomorrowIndex])).ToString("HH:mm")
 
   Write-Host "Wetterstation: $stationName"
   Write-Host "Temperatur: $temperatureText C, Luftfeuchte: $humidity %"
@@ -85,8 +106,9 @@ function New-TextSegment {
     stopY = $StopY
     fx = 122
     n = $Text
-    sx = 220
+    sx = 245
     ix = 128
+    c1 = 0
     c2 = 0
     pal = 0
     col = @(
@@ -123,32 +145,38 @@ function New-LineSegment {
 }
 
 $segments = @(
-  New-TextSegment 0 0 31 0 7 "${temperatureText}C" @(255, 60, 0)
-  New-TextSegment 1 32 63 0 7 "$humidity%" @(0, 120, 255)
-  New-TextSegment 2 64 95 0 7 "TP$dewPointText" @(0, 220, 180)
-  New-TextSegment 3 96 128 0 7 "${pressure}h" @(180, 80, 255)
+  New-TextSegment 0 0 30 0 6 "Temp: $temperatureText C" @(255, 60, 0)
+  New-TextSegment 1 33 63 0 6 "Feucht: $humidity %" @(0, 120, 255)
+  New-TextSegment 2 66 96 0 6 "Taupkt: $dewPointText C" @(0, 220, 180)
+  New-TextSegment 3 99 128 0 6 "Druck: $pressure hPa" @(180, 80, 255)
 
-  New-TextSegment 4 0 31 8 15 "W$windText" @(0, 220, 220)
-  New-TextSegment 5 32 63 8 15 "B$gustText" @(255, 180, 0)
-  New-TextSegment 6 64 95 8 15 "$windCompass $windDirection" @(255, 255, 0)
-  New-TextSegment 7 96 128 8 15 "${visibility}km" @(160, 200, 255)
+  New-TextSegment 4 0 30 6 12 "Wind: $windText km/h" @(0, 220, 220)
+  New-TextSegment 5 33 63 6 12 "Boeen: $gustText km/h" @(255, 180, 0)
+  New-TextSegment 6 66 96 6 12 "Richtg: $windCompass $windDirection Grad" @(255, 255, 0)
+  New-TextSegment 7 99 128 6 12 "Sicht: $visibility km" @(160, 200, 255)
 
-  New-TextSegment 8 0 31 16 23 "R10 $rain10Text" @(0, 100, 255)
-  New-TextSegment 9 32 63 16 23 "R60 $currentRainText" @(0, 100, 255)
-  New-TextSegment 10 64 95 16 23 "WK$cloudCover%" @(140, 140, 180)
-  New-TextSegment 11 96 128 16 23 "$($weatherResponse.weather.condition)" @(180, 220, 180)
+  New-TextSegment 8 0 30 12 18 "Reg10: $rain10Text mm" @(0, 100, 255)
+  New-TextSegment 9 33 63 12 18 "Reg30: $rain30Text mm" @(0, 100, 255)
+  New-TextSegment 10 66 96 12 18 "Reg60: $currentRainText mm" @(0, 100, 255)
+  New-TextSegment 11 99 128 12 18 "Wolken: $cloudCover %" @(140, 140, 180)
 
-  New-TextSegment 12 0 31 24 32 "M$maxRainProbability%" @($(if ($maxRainProbability -ge 20) { 0 } else { 40 }), $(if ($maxRainProbability -ge 20) { 120 } else { 255 }), $(if ($maxRainProbability -ge 20) { 255 } else { 40 }))
-  New-TextSegment 13 32 63 24 32 "M$($rainAmount.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture))mm" @(0, 120, 255)
-  New-TextSegment 14 64 95 24 32 "#DDMM0" @(255, 255, 255)
-  New-TextSegment 15 96 128 24 32 "#HHMM0" @(255, 255, 255)
+  New-TextSegment 12 0 30 18 25 "Wetter: $conditionText" @(180, 220, 180)
+  New-TextSegment 13 33 63 18 25 "MorgR: $maxRainProbability %" @($(if ($maxRainProbability -ge 20) { 0 } else { 40 }), $(if ($maxRainProbability -ge 20) { 120 } else { 255 }), $(if ($maxRainProbability -ge 20) { 255 } else { 40 }))
+  New-TextSegment 14 66 96 18 25 "MorgM: $($rainAmount.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture) ) mm" @(0, 120, 255)
+  New-TextSegment 15 99 128 18 25 "Stand: $measurementTime Uhr" @(160, 255, 160)
 
-  New-LineSegment 16 31 32 0 32
-  New-LineSegment 17 63 64 0 32
-  New-LineSegment 18 95 96 0 32
-  New-LineSegment 19 0 128 7 8
-  New-LineSegment 20 0 128 15 16
-  New-LineSegment 21 0 128 23 24
+  New-TextSegment 16 0 30 25 32 "S-Auf: $sunrise Uhr" @(255, 180, 0)
+  New-TextSegment 17 33 63 25 32 "S-Unt: $sunset Uhr" @(255, 100, 0)
+  New-TextSegment 18 66 96 25 32 "Datum: #DATE0" @(255, 255, 255)
+  New-TextSegment 19 99 128 25 32 "Zeit: #HHMM0 Uhr" @(255, 255, 255)
+
+  New-LineSegment 20 31 32 0 32
+  New-LineSegment 21 64 65 0 32
+  New-LineSegment 22 97 98 0 32
+  @{ id = 23; stop = 0 }
+  @{ id = 24; stop = 0 }
+  @{ id = 25; stop = 0 }
+  @{ id = 26; stop = 0 }
 )
 
 $wledUri = "http://192.168.178.214/json/state"
@@ -157,7 +185,9 @@ $segmentBatches = @(
   @($segments[4..7])
   @($segments[8..11])
   @($segments[12..15])
-  @($segments[16..21])
+  @($segments[16..19])
+  @($segments[20..22])
+  @($segments[23..26])
 )
 
 for ($batchIndex = 0; $batchIndex -lt $segmentBatches.Count; $batchIndex++) {
@@ -178,4 +208,4 @@ for ($batchIndex = 0; $batchIndex -lt $segmentBatches.Count; $batchIndex++) {
     -ErrorAction Stop | Out-Null
 }
 
-Write-Host "4x4-Anzeige wurde an WLED gesendet."
+Write-Host "4x5-Anzeige mit vollstaendigen Einheiten wurde an WLED gesendet."
