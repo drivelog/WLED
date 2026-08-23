@@ -881,7 +881,6 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
       mxconfig.chain_length = 1;
       mxconfig.mx_width = physicalPanelWidth * 2;
       mxconfig.mx_height = physicalPanelHeight / 2;
-      mxconfig.driver = HUB75_I2S_CFG::FM6124;
       // AI: end
   } else {
     DEBUGBUS_PRINTLN("Unknown type");
