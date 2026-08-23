@@ -402,20 +402,20 @@ static void p8FiveScanRawTask(void *) {
   pinMode(clockPin, OUTPUT);
   digitalWrite(outputEnablePin, HIGH);
 
-  // Returns RGB bit flags for the calibration rectangle at a logical coordinate.
-  const auto calibrationColor = [](uint8_t x, uint8_t y) -> uint8_t {
-    const bool outerBorder = x == 0 || x == 39 || y == 0 || y == 19;
-    const bool centerCross = x == 19 || x == 20 || y == 9 || y == 10;
-    if (outerBorder || centerCross) return 0x07;
-
-    const bool rectangleBorder = x == 2 || x == 17 || x == 22 || x == 37 ||
-                                 y == 2 || y == 7 || y == 12 || y == 17;
-    if (!rectangleBorder) return 0;
-    if (x < 19 && y < 9) return 0x01; // red, top-left
-    if (x > 20 && y < 9) return 0x02; // green, top-right
-    if (x < 19 && y > 10) return 0x04; // blue, bottom-left
-    if (x > 20 && y > 10) return 0x03; // yellow, bottom-right
-    return 0;
+  // Returns a unique RGB code for each group of ten raw shift-register bits.
+  const auto rawBlockColor = [](uint8_t column) -> uint8_t {
+    static constexpr uint8_t colors[] = {
+      0x01, // bits 0-9: red
+      0x02, // bits 10-19: green
+      0x04, // bits 20-29: blue
+      0x03, // bits 30-39: yellow
+      0x05, // bits 40-49: magenta
+      0x06, // bits 50-59: cyan
+      0x07  // bits 60-69: white
+    };
+    const uint8_t block = column / 10;
+    if (block < 7) return colors[block];
+    return (column & 1) ? 0x01 : 0x04; // bits 70-79: alternating red/blue
   };
 
   uint8_t completedScans = 0;
@@ -427,10 +427,8 @@ static void p8FiveScanRawTask(void *) {
       digitalWrite(addressPins[2], row & 0x04);
 
       for (uint8_t column = 0; column < 80; column++) {
-        const uint8_t bank = column / 40;
-        const uint8_t x = column % 40;
-        const uint8_t upperColor = calibrationColor(x, row + bank * 5);
-        const uint8_t lowerColor = calibrationColor(x, row + 10 + bank * 5);
+        const uint8_t upperColor = row == 0 ? rawBlockColor(column) : 0;
+        const uint8_t lowerColor = upperColor;
         digitalWrite(dataPins[0], upperColor & 0x01);
         digitalWrite(dataPins[1], upperColor & 0x02);
         digitalWrite(dataPins[2], upperColor & 0x04);
