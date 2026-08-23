@@ -1131,6 +1131,12 @@ BusHub75Matrix::BusHub75Matrix(const BusConfig &bc) : Bus(bc.type, bc.start, bc.
   if (_valid) {
     _panelWidth = virtualDisp ? virtualDisp->width() : display->width();  // cache width - it will never change
     if (_isFiveScan) _panelWidth = physicalPanelWidth;
+#ifdef WLED_P8_5S_DIAGNOSTIC
+    if (_isFiveScan) {
+      display->setBrightness(32);
+      drawFiveScanDiagnostic();
+    }
+#endif
   }
 
   DEBUGBUS_PRINT(F("MatrixPanel_I2S_DMA "));
@@ -1191,6 +1197,12 @@ uint32_t BusHub75Matrix::getPixelColor(unsigned pix) const {
 void BusHub75Matrix::setBrightness(uint8_t b) {
   _bri = b;
   if (!_valid || !display) return;
+#ifdef WLED_P8_5S_DIAGNOSTIC
+  if (_isFiveScan) {
+    display->setBrightness(32);
+    return;
+  }
+#endif
   display->setBrightness(_bri); 
 }
 
