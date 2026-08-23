@@ -6,7 +6,7 @@ default_envs = p8_4020_5s_diagnostic
 extends = env:adafruit_matrixportal_esp32s3
 build_unflags = -D LED_TYPES=TYPE_HUB75MATRIX_HS
 build_flags = ${env:adafruit_matrixportal_esp32s3.build_flags}
-  -D LED_TYPES=TYPE_HUB75MATRIX_5S
-  -D DATA_PINS=40,20,1,1,1
-  -D PIXEL_COUNTS=800
+  -D LED_TYPES=TYPE_ONOFF
+  -D DATA_PINS=16
+  -D PIXEL_COUNTS=1
   -D WLED_P8_5S_DIAGNOSTIC
