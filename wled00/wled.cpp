@@ -418,6 +418,7 @@ static void p8FiveScanRawTask(void *) {
     return 0;
   };
 
+  uint8_t completedScans = 0;
   for (;;) {
     for (uint8_t row = 0; row < 5; row++) {
       digitalWrite(outputEnablePin, HIGH);
@@ -443,9 +444,12 @@ static void p8FiveScanRawTask(void *) {
       digitalWrite(latchPin, HIGH);
       digitalWrite(latchPin, LOW);
       digitalWrite(outputEnablePin, LOW);
-      delayMicroseconds(80);
+      delayMicroseconds(50);
     }
-    delay(1);
+    if (++completedScans >= 20) {
+      completedScans = 0;
+      delay(1);
+    }
   }
 }
 #endif
