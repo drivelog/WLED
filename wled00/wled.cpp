@@ -403,7 +403,7 @@ static void p8FiveScanRawTask(void *) {
   digitalWrite(outputEnablePin, HIGH);
 
   for (;;) {
-    const uint8_t page = (millis() / 5000U) % 3U;
+    const uint8_t rawPosition = (millis() / 250U) % 88U; // bits 80-87 provide a visible pause
     for (uint8_t row = 0; row < 5; row++) {
       digitalWrite(outputEnablePin, HIGH);
       digitalWrite(addressPins[0], row & 0x01);
@@ -411,13 +411,13 @@ static void p8FiveScanRawTask(void *) {
       digitalWrite(addressPins[2], row & 0x04);
 
       for (uint8_t column = 0; column < 80; column++) {
-        const bool marker = column == 0 || column == 39 || column == 40 || column == 79;
-        digitalWrite(dataPins[0], page == 0 || marker);
-        digitalWrite(dataPins[1], page == 1 || marker);
-        digitalWrite(dataPins[2], page == 2 || marker);
-        digitalWrite(dataPins[3], row == 0 || marker);
-        digitalWrite(dataPins[4], row == 2 || marker);
-        digitalWrite(dataPins[5], row == 4 || marker);
+        const bool active = row == 0 && column == rawPosition;
+        digitalWrite(dataPins[0], active); // R1: upper bank marker
+        digitalWrite(dataPins[1], LOW);
+        digitalWrite(dataPins[2], LOW);
+        digitalWrite(dataPins[3], LOW);
+        digitalWrite(dataPins[4], LOW);
+        digitalWrite(dataPins[5], active); // B2: lower bank marker
         digitalWrite(clockPin, HIGH);
         digitalWrite(clockPin, LOW);
       }
